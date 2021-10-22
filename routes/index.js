@@ -1,3 +1,4 @@
+const { enabled } = require('debug');
 var express = require('express');
 var router = express.Router();
 
@@ -61,5 +62,49 @@ router.post('/update-shop', function(req, res, next){
 
   res.render('shop',{dataCardBike:req.session.dataCardBike})
 })
+
+const stripe = require('stripe')('sk_test_51JnJa9Esh9oBZ4aX7eAHlO36xrYhUGRDov9Kh62vXpXF83UdBRm0NyVsIoPdkldLZce2w2g2NJtijOeGEE62HMRP0069JGu6pG')
+
+
+router.post('/create-checkout-session', async (req, res) => {
+  
+  let order = [];
+  for(var i=0; i<req.session.dataCardBike.length; i++){
+    order.push({
+      price_data: {
+        currency: 'eur',
+        product_data: {
+          name: req.session.dataCardBike[i].name,
+        },
+        unit_amount: req.session.dataCardBike[i].price*100,
+      },
+      quantity: req.session.dataCardBike[i].quantity,
+    },
+    );
+  }
+   
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    line_items: order,
+
+
+    mode: 'payment',
+    allow_promotion_codes: true,
+    success_url: 'http://localhost:3000/success',
+    cancel_url: 'http://localhost:3000/cancel',
+  });
+
+  res.redirect(303, session.url);
+});
+
+router.get('/success', function(req, res, next){
+  req.session.dataCardBike=[];
+  res.render('shop', {dataCardBike:req.session.dataCardBike})
+});
+
+router.get('/cancel', function(req, res, next){
+  res.render('shop', {dataCardBike:req.session.dataCardBike})
+});
+
 
 module.exports = router;
